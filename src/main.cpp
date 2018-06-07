@@ -305,23 +305,6 @@ int main() {
                    it++;
                 }
 
-cout << "previous_path: " << prev_size << endl;
-cout << "Vehicles on lane: " << ego.lane << endl;
-cout << "Vehicles states: " << ego.state << endl;
-cout << "Vehicles vel: " << ego.v << endl;
-cout << "Vehicles s: " << ego.s << endl;
-
-//Vehicle temp_vehicle1;
-//Vehicle temp_vehicle2;
-//if(ego.get_vehicle_ahead(predictions, ego.lane, temp_vehicle1)){
-//   cout << "Ahead Vehicles s: " << temp_vehicle1.s << endl;
-//}
-//if(ego.get_vehicle_behind(predictions, ego.lane, temp_vehicle2)){
-//cout << "Behind Vehicles s: " << temp_vehicle2.s << endl;
-//}
-
-//cout << endl;
-
         	vector<Vehicle> trajectory = ego.choose_next_state(predictions);
         	
                 //
@@ -329,7 +312,7 @@ cout << "Vehicles s: " << ego.s << endl;
                 //
 
                 ego.realize_next_state(trajectory);
-cout << endl;
+
           	json msgJson;
 
                 vector<double> ptsx;
@@ -524,18 +507,15 @@ vector<Vehicle> Vehicle::choose_next_state(map<int, vector<Vehicle>> predictions
     vector<vector<Vehicle>> final_trajectories;
 
     for (vector<string>::iterator it = states.begin(); it != states.end(); ++it) {
-cout << "State " << *it << endl;
+
         vector<Vehicle> trajectory = generate_trajectory(*it, predictions);
         if (trajectory.size() != 0) {
             cost = calculate_cost(*this, predictions, trajectory);
             costs.push_back(cost);
             final_trajectories.push_back(trajectory);
-
-cout << "State " << *it << endl;
-cout << "Cost: " << cost << endl;
         }
     }
-//cout << endl;
+
     vector<float>::iterator best_cost = min_element(begin(costs), end(costs));
     int best_idx = distance(begin(costs), best_cost);
     return final_trajectories[best_idx];
@@ -557,23 +537,6 @@ vector<string> Vehicle::successor_states() {
         states.push_back("LCL");
     } 
 
-#if 0
-    string state = this->state;
-    if(state.compare("KL") == 0) {
-        states.push_back("PLCL");
-        states.push_back("PLCR");
-    } else if (state.compare("PLCL") == 0) {
-        if (lane != 0) {
-            states.push_back("PLCL");
-            states.push_back("LCL");
-        }
-    } else if (state.compare("PLCR") == 0) {
-        if (lane != lanes_available -1) {
-            states.push_back("PLCR");
-            states.push_back("LCR");
-        }
-    }
-#endif
     //If state is "LCL" or "LCR", then just return "KL"
     return states;
 }
@@ -610,25 +573,6 @@ vector<float> Vehicle::get_kinematics(map<int, vector<Vehicle>> predictions, int
 
     if (get_vehicle_ahead(predictions, lane, vehicle_ahead)) 
     {
-
-cout << "ahead vehicle velocity " << endl;
-cout << "s: " << vehicle_ahead.s << endl;
-cout << "v: " << vehicle_ahead.v << endl;
-
-        if (get_vehicle_behind(predictions, lane, vehicle_behind))
-        {
-
-cout << "behind vehicle velocity " << endl;
-cout << "v: " << vehicle_behind.v << endl;
-
-            // new_velocity = vehicle_ahead.v; //must travel at the speed of traffic, regardless of preferred buffer
-        } 
-        else 
-        {
-            // float max_velocity_in_front = (vehicle_ahead.s - this->s - this->preferred_buffer) + vehicle_ahead.v - 0.5 * (this->a);
-            // new_velocity = min(min(max_velocity_in_front, max_velocity_accel_limit), this->target_speed);
-        }
-
         new_velocity = max(this->v - this->max_acceleration, this->max_acceleration);
     } 
     else
@@ -638,11 +582,6 @@ cout << "v: " << vehicle_behind.v << endl;
 
     new_accel = new_velocity - this->v; //Equation: (v_1 - v_0)/t = acceleration
     new_position = this->s + new_velocity + new_accel / 2.0;
-
-//cout << "keep lane " << endl;
-//cout << "s: " << new_position << endl;
-//cout << "v: " << new_velocity << endl;
-//cout << "a: " << new_accel << endl;
 
     return{new_position, new_velocity, new_accel};
     
@@ -667,11 +606,6 @@ vector<Vehicle> Vehicle::keep_lane_trajectory(map<int, vector<Vehicle>> predicti
     float new_s = kinematics[0];
     float new_v = kinematics[1];
     float new_a = kinematics[2];
-
-cout << "lane " << this->lane << endl;
-cout << "s: " << kinematics[0] << endl;
-cout << "v: " << kinematics[1] << endl;
-cout << "a: " << kinematics[2] << endl;
 
     trajectory.push_back(Vehicle(this->lane, new_s, new_v, new_a, "KL"));
     return trajectory;
@@ -728,7 +662,6 @@ vector<Vehicle> Vehicle::lane_change_trajectory(string state, map<int, vector<Ve
         next_lane_vehicle = it->second[0];
         if(next_lane_vehicle.lane == new_lane)
         {
-           cout << "New lane distance " << abs(this->s - next_lane_vehicle.s) << endl;
            if ( abs(this->s - next_lane_vehicle.s) < 5) 
            {
             //If lane change is not possible, return empty trajectory.
@@ -738,11 +671,6 @@ vector<Vehicle> Vehicle::lane_change_trajectory(string state, map<int, vector<Ve
     }
     trajectory.push_back(Vehicle(this->lane, this->s, this->v, this->a, this->state));
     vector<float> kinematics = get_kinematics(predictions, new_lane);
-
-cout << "New lane " << new_lane << endl;
-cout << "s: " << kinematics[0] << endl;
-cout << "v: " << kinematics[1] << endl;
-cout << "a: " << kinematics[2] << endl;
 
     trajectory.push_back(Vehicle(new_lane, kinematics[0], kinematics[1], kinematics[2], state));
     return trajectory;
@@ -893,17 +821,6 @@ float speed_cost(const Vehicle & vehicle, const vector<Vehicle> & trajectory, co
     Cost becomes higher for trajectories with intended lane and final lane that have traffic slower than vehicle's target speed. 
     */
 
-    //float proposed_speed_intended = lane_speed(predictions, data["intended_lane"]);
-    //if (proposed_speed_intended < 0) {
-    //    proposed_speed_intended = vehicle.target_speed;
-    //}
-
-    //float proposed_speed_final = lane_speed(predictions, data["final_lane"]);
-    //if (proposed_speed_final < 0) {
-    //    proposed_speed_final = vehicle.target_speed;
-    //}
-    
-    //float cost = (2.0*vehicle.target_speed - proposed_speed_intended - proposed_speed_final)/vehicle.target_speed;
     float cost = 0;
     float proposed_speed_final = data["proposed_speed_final"];
 
@@ -952,7 +869,6 @@ float calculate_cost(const Vehicle & vehicle, const map<int, vector<Vehicle>> & 
     
     for (int i = 0; i < cf_list.size(); i++) {
         float new_cost = weight_list[i]*cf_list[i](vehicle, trajectory, predictions, trajectory_data);
-        cout << "new Cost value: " << new_cost << endl;
         cost += new_cost;
     }
 
